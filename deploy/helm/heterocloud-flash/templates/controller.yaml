@@ -73,12 +73,21 @@ spec:
               value: /var/run/secrets/registry/password
             - name: FLASH_REGISTRY_PULL_SECRET
               value: {{ required "registry.workloadPullSecretName is required" .Values.registry.workloadPullSecretName | quote }}
+            {{- if .Values.registry.caConfigMapName }}
+            - name: FLASH_REGISTRY_CA_FILE
+              value: /var/run/secrets/registry-ca/ca.crt
+            {{- end }}
             {{- end }}
           {{- if .Values.registry.enabled }}
           volumeMounts:
             - name: registry-auth
               mountPath: /var/run/secrets/registry
               readOnly: true
+            {{- if .Values.registry.caConfigMapName }}
+            - name: registry-ca
+              mountPath: /var/run/secrets/registry-ca
+              readOnly: true
+            {{- end }}
           {{- end }}
           securityContext:
             {{- include "flash.containerSecurityContext" . | nindent 12 }}
@@ -93,6 +102,11 @@ spec:
             items:
               - key: {{ required "registry.passwordKey is required" .Values.registry.passwordKey }}
                 path: password
+        {{- if .Values.registry.caConfigMapName }}
+        - name: registry-ca
+          configMap:
+            name: {{ .Values.registry.caConfigMapName | quote }}
+        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

@@ -70,6 +70,9 @@ registry:
   authSecretName: heterocloud-registry-pull-auth
   passwordKey: password
   workloadPullSecretName: heterocloud-registry-pull
+  # Optional ConfigMap (key ca.crt) with the CA of a private registry; used for image
+  # inspection. Nodes must trust it separately for pulls.
+  caConfigMapName: ""
 
 providerAuth:
   issuer: heterocloud
