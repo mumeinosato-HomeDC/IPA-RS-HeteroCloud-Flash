@@ -87,7 +87,13 @@ async fn run() -> Result<()> {
             if username.is_empty() || password.is_empty() {
                 anyhow::bail!("registry username and password must not be empty");
             }
-            ImageInspector::with_basic_auth(host, username, password)
+            let roots = match optional("FLASH_REGISTRY_CA_FILE") {
+                Some(path) => {
+                    vec![fs::read(&path).with_context(|| format!("read registry CA from {path}"))?]
+                }
+                None => Vec::new(),
+            };
+            ImageInspector::with_basic_auth_and_roots(host, username, password, &roots)
         }
         (None, None, None) => ImageInspector::new(),
         _ => unreachable!("registry configuration completeness was checked"),

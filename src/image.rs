@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use oci_client::{
     Client, Reference,
-    client::ClientConfig,
+    client::{Certificate, CertificateEncoding, ClientConfig},
     config::ConfigFile,
     manifest::{OciImageManifest, OciManifest},
     secrets::RegistryAuth,
@@ -36,10 +36,24 @@ struct ScopedRegistryAuth {
 impl ImageInspector {
     #[must_use]
     pub fn new() -> Self {
+        Self::with_root_certificates(&[])
+    }
+
+    /// Like [`Self::new`], additionally trusting PEM CA certificates (for example a
+    /// private registry CA) on top of the default roots.
+    #[must_use]
+    pub fn with_root_certificates(pem_bundles: &[Vec<u8>]) -> Self {
         let config = ClientConfig {
             connect_timeout: Some(Duration::from_secs(5)),
             read_timeout: Some(Duration::from_secs(15)),
             user_agent: concat!("heterocloud-flash/", env!("CARGO_PKG_VERSION")),
+            extra_root_certificates: pem_bundles
+                .iter()
+                .map(|pem| Certificate {
+                    encoding: CertificateEncoding::Pem,
+                    data: pem.clone(),
+                })
+                .collect(),
             ..ClientConfig::default()
         };
         Self {
@@ -50,7 +64,17 @@ impl ImageInspector {
 
     #[must_use]
     pub fn with_basic_auth(registry: String, username: String, password: String) -> Self {
-        let mut inspector = Self::new();
+        Self::with_basic_auth_and_roots(registry, username, password, &[])
+    }
+
+    #[must_use]
+    pub fn with_basic_auth_and_roots(
+        registry: String,
+        username: String,
+        password: String,
+        pem_bundles: &[Vec<u8>],
+    ) -> Self {
+        let mut inspector = Self::with_root_certificates(pem_bundles);
         inspector.registry_auth = Some(ScopedRegistryAuth {
             registry,
             auth: RegistryAuth::Basic(username, password),
